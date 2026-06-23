@@ -197,7 +197,8 @@ jobs:
   validate:
     name: "Validate fixtures via reusable workflow"
     needs: [version-sync-check, guard, mirror-drift]
-    uses: heimgewebe/contracts-mirror/.github/workflows/contracts-ajv-reusable.yml@contracts-v1
+    uses: ./.github/workflows/contracts-ajv-reusable.yml
     secrets: inherit
     with:
       fixtures_glob: ${{ vars.FIXTURES_GLOB || 'fixtures/**/*.jsonl' }}
+      contracts_ref: ${{ github.event.pull_request.head.sha || github.sha }}

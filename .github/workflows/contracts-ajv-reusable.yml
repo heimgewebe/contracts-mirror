@@ -64,6 +64,8 @@ jobs:
     name: "AJV validate fixtures vs. contracts schemas"
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      NODE_OPTIONS: "--max-old-space-size=2048"
 
     steps:
       - name: Checkout caller (fixtures)
@@ -100,12 +102,11 @@ jobs:
           npm config set audit false
           npm config set fund false
           npm config set update-notifier false
-          echo 'NODE_OPTIONS=--max-old-space-size=2048' >> "$GITHUB_ENV"
 
       - name: Warm ajv-cli
         env:
           AJV_VER: ${{ inputs.ajv_version }}
-        run: npx --yes "ajv-cli@${AJV_VER}" --version
+        run: npx --yes "ajv-cli@${AJV_VER}" help >/dev/null
 
       - name: Compile schemas
         env:
@@ -119,11 +120,15 @@ jobs:
           ROOT="_contracts/${SCHEMA_DIR}"
           [[ -d "$ROOT" ]] || { echo "::error::Schema dir not found: $ROOT"; exit 1; }
 
-          # Use find -path so wildcards in SCHEMA_PATTERN are evaluated by find
-          mapfile -t schemas < <(find "$ROOT" -type f -path "$ROOT/$SCHEMA_PATTERN" \
-            -print | sort || true)
+          # Extract basename pattern for find
+          name_pattern="${SCHEMA_PATTERN##*/}"
+          if [[ -z "$name_pattern" || "$name_pattern" == "*" ]]; then
+            name_pattern="*.schema.json"
+          fi
+
+          mapfile -t schemas < <(find "$ROOT" -type f -name "$name_pattern" -print | sort || true)
           if (( ${#schemas[@]} == 0 )); then
-            echo "::error::No schemas found under $ROOT matching '$SCHEMA_PATTERN'"
+            echo "::error::No schemas found under $ROOT matching '$name_pattern'"
             exit 1
           fi
 
@@ -134,7 +139,7 @@ jobs:
             if [[ "$STRICT" == "true" ]]; then args+=(--strict=true); fi
             npx --yes "ajv-cli@${AJV_VER}" "${args[@]}"
             echo "::endgroup::"
-            ((count++))
+            ((count += 1))
           done
           echo "::notice::Compiled ${count} schemas."
 
@@ -148,16 +153,16 @@ jobs:
           FAIL_MISSING: ${{ inputs.fail_on_missing_schema }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
+          shopt -s nullglob globstar
 
           # Collect fixtures (.jsonl or .json). Fallback keeps it forgiving for callers.
-          mapfile -t fixtures < <(compgen -G "${FIXTURES_GLOB}" || true)
+          fixtures=( ${FIXTURES_GLOB} )
           if (( ${#fixtures[@]} == 0 )); then
-            mapfile -t fixtures < <(compgen -G 'fixtures/**/*.{jsonl,json}' || true)
+            fixtures=( fixtures/**/*.{jsonl,json} )
           fi
           if (( ${#fixtures[@]} == 0 )); then
-            echo "::notice::No fixtures found to validate."
-            exit 0
+            echo "::error::No fixtures found to validate. The run cannot be proven successful."
+            exit 1
           fi
 
           ok=0; fail=0; skipped=0
@@ -176,9 +181,9 @@ jobs:
               echo "::warning file=${fixture}::${msg}"
               if [[ "${FAIL_MISSING}" == "true" ]]; then
                 echo "::error::Missing schema and fail_on_missing_schema=true"
-                ((fail++))
+                ((fail += 1))
               else
-                ((skipped++))
+                ((skipped += 1))
               fi
             else
               if (( ${#candidates[@]} > 1 )); then
@@ -186,13 +191,38 @@ jobs:
                 printf "  - %s\n" "${candidates[@]}"
               fi
               schema="${candidates[0]}"
-              args=(validate -s "$schema" -d "$fixture" --spec="$SPEC")
-              args+=(--all-errors --validate-formats=true --errors=line)
-              if [[ "$STRICT" == "true" ]]; then args+=(--strict=true); fi
-              if ! npx --yes "ajv-cli@${AJV_VER}" "${args[@]}"; then
-                ((fail++))
+
+              if [[ "$fixture" == *.jsonl ]]; then
+                line_num=0
+                while IFS= read -r line || [[ -n "$line" ]]; do
+                  ((line_num += 1))
+                  [[ -z "${line// }" ]] && continue
+
+                  tmp_json="${fixture}.tmp.${line_num}.json"
+                  echo "$line" > "$tmp_json"
+
+                  args=(validate -s "$schema" -d "$tmp_json" --spec="$SPEC")
+                  args+=(--all-errors --validate-formats=true --errors=line)
+                  if [[ "$STRICT" == "true" ]]; then args+=(--strict=true); fi
+
+                  if ! npx --yes "ajv-cli@${AJV_VER}" "${args[@]}"; then
+                    echo "::error file=${fixture},line=${line_num}::Validation failed for record at line ${line_num}"
+                    ((fail += 1))
+                  else
+                    ((ok += 1))
+                  fi
+                  rm -f "$tmp_json"
+                done < "$fixture"
               else
-                ((ok++))
+                args=(validate -s "$schema" -d "$fixture" --spec="$SPEC")
+                args+=(--all-errors --validate-formats=true --errors=line)
+                if [[ "$STRICT" == "true" ]]; then args+=(--strict=true); fi
+                if ! npx --yes "ajv-cli@${AJV_VER}" "${args[@]}"; then
+                  echo "::error file=${fixture}::Validation failed for file"
+                  ((fail += 1))
+                else
+                  ((ok += 1))
+                fi
               fi
             fi
             echo "::endgroup::"
