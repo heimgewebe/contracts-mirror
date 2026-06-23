@@ -196,7 +196,7 @@ jobs:
 
   validate:
     name: "Validate fixtures via reusable workflow"
-    needs: [version-sync-check, guard, mirror-drift]
+    needs: [version-sync-check, guard]
     uses: ./.github/workflows/contracts-ajv-reusable.yml
     secrets: inherit
     with:
