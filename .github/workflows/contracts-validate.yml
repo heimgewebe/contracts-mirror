@@ -60,13 +60,16 @@ jobs:
             line="${line%%#*}"
             line="${line##+([[:space:]])}"
             line="${line%%+([[:space:]])}"
-            if [[ "$line" =~ ^(-[[:space:]]*)?uses:[[:space:]]*'([^']+)' ]]; then
+            re1="^(-[[:space:]]*)?uses:[[:space:]]*'([^']+)'"
+            re2='^(-[[:space:]]*)?uses:[[:space:]]*"([^"]+)"'
+            re3="^(-[[:space:]]*)?uses:[[:space:]]*([^[:space:]#]+)"
+            if [[ "$line" =~ $re1 ]]; then
               echo "${BASHREMATCH[2]}"; return 0
             fi
-            if [[ "$line" =~ ^(-[[:space:]]*)?uses:[[:space:]]*\"([^\"]+)\" ]]; then
+            if [[ "$line" =~ $re2 ]]; then
               echo "${BASHREMATCH[2]}"; return 0
             fi
-            if [[ "$line" =~ ^(-[[:space:]]*)?uses:[[:space:]]*([^[:space:]#]+) ]]; then
+            if [[ "$line" =~ $re3 ]]; then
               echo "${BASHREMATCH[2]}"; return 0
             fi
             return 1
@@ -75,7 +78,7 @@ jobs:
           check_pair() {
             local wf="$1" repo="$2" ref="$3"
             [[ "$repo" == "$REQUIRED_REPO" ]] || return 0
-            if [[ "$ref" =~ (\$\{|\$\(|\$[A-Za-z_]) ]]; then
+            if [[ "$ref" =~ \$\{ || "$ref" =~ \$\( || "$ref" =~ \$[A-Za-z_] ]]; then
               echo "::error file=$wf::Dynamic ref not allowed: $ref"; return 1
             fi
             if [[ "$ref" != "$REQUIRED_REF" ]]; then
@@ -196,8 +199,9 @@ jobs:
 
   validate:
     name: "Validate fixtures via reusable workflow"
-    needs: [version-sync-check, guard, mirror-drift]
-    uses: heimgewebe/contracts-mirror/.github/workflows/contracts-ajv-reusable.yml@contracts-v1
+    needs: [version-sync-check, guard]
+    uses: ./.github/workflows/contracts-ajv-reusable.yml
     secrets: inherit
     with:
       fixtures_glob: ${{ vars.FIXTURES_GLOB || 'fixtures/**/*.jsonl' }}
+      contracts_ref: ${{ github.event.pull_request.head.sha || github.sha }}
