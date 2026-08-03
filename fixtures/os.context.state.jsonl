@@ -1,1 +1,1 @@
-{"context_id":"ctx-42","collected_at":"2024-03-12T10:15:30Z","state":{"mode":"active","version":3},"event_id":"evt-123","event_type":"heimlern.decision","occurred_at":"2024-03-12T10:15:30Z","payload":{"description":"Decision issued for learner","tags":["beta","preview"]},"context":{"source":"heimlern-app","locale":"de-DE"}}
+{"ts":"2026-08-03T02:15:30Z","app":"code","window":"contracts-mirror","focus":true,"activity_rpm":120,"source":"mitschreiber"}
