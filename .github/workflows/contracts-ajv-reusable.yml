@@ -66,6 +66,7 @@ jobs:
     timeout-minutes: 25
     env:
       NODE_OPTIONS: "--max-old-space-size=2048"
+      AJV_FORMATS_VER: "3.0.1"
 
     steps:
       - name: Checkout caller (fixtures)
@@ -106,7 +107,7 @@ jobs:
       - name: Warm ajv-cli
         env:
           AJV_VER: ${{ inputs.ajv_version }}
-        run: npx --yes "ajv-cli@${AJV_VER}" help >/dev/null
+        run: npx --yes --package "ajv-cli@${AJV_VER}" --package "ajv-formats@${AJV_FORMATS_VER}" ajv help >/dev/null
 
       - name: Compile schemas
         env:
@@ -137,7 +138,8 @@ jobs:
             echo "::group::Compile $schema"
             args=(compile -s "$schema" --spec="$SPEC")
             if [[ "$STRICT" == "true" ]]; then args+=(--strict=true); fi
-            npx --yes "ajv-cli@${AJV_VER}" "${args[@]}"
+            args+=(-c ajv-formats)
+            npx --yes --package "ajv-cli@${AJV_VER}" --package "ajv-formats@${AJV_FORMATS_VER}" ajv "${args[@]}"
             echo "::endgroup::"
             ((count += 1))
           done
@@ -204,8 +206,9 @@ jobs:
                   args=(validate -s "$schema" -d "$tmp_json" --spec="$SPEC")
                   args+=(--all-errors --validate-formats=true --errors=line)
                   if [[ "$STRICT" == "true" ]]; then args+=(--strict=true); fi
+                  args+=(-c ajv-formats)
 
-                  if ! npx --yes "ajv-cli@${AJV_VER}" "${args[@]}"; then
+                  if ! npx --yes --package "ajv-cli@${AJV_VER}" --package "ajv-formats@${AJV_FORMATS_VER}" ajv "${args[@]}"; then
                     echo "::error file=${fixture},line=${line_num}::Validation failed for record at line ${line_num}"
                     ((fail += 1))
                   else
@@ -217,7 +220,8 @@ jobs:
                 args=(validate -s "$schema" -d "$fixture" --spec="$SPEC")
                 args+=(--all-errors --validate-formats=true --errors=line)
                 if [[ "$STRICT" == "true" ]]; then args+=(--strict=true); fi
-                if ! npx --yes "ajv-cli@${AJV_VER}" "${args[@]}"; then
+                args+=(-c ajv-formats)
+                if ! npx --yes --package "ajv-cli@${AJV_VER}" --package "ajv-formats@${AJV_FORMATS_VER}" ajv "${args[@]}"; then
                   echo "::error file=${fixture}::Validation failed for file"
                   ((fail += 1))
                 else
