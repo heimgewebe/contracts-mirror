@@ -1,69 +1,52 @@
 {
-  "$id": "https://heimgewebe.de/schemas/os.context.state.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OS Context State",
-  "$comment": "Canonical source lives in metarepo/contracts/os.context.state.schema.json; this file is a mirror for validation.",
+  "$id": "https://raw.githubusercontent.com/heimgewebe/metarepo/contracts-v1/contracts/os.context.state.schema.json",
+  "title": "os.context.state",
+  "description": "Laufender OS-/Fensterkontext (Fokus & Aktivität) – ohne Rohtext.",
   "type": "object",
-  "required": [
-    "context_id",
-    "collected_at",
-    "state"
-  ],
+  "additionalProperties": false,
   "properties": {
-    "context_id": {
+    "ts": {
       "type": "string",
-      "minLength": 1
+      "format": "date-time",
+      "description": "Zeitstempel in ISO 8601 (UTC empfohlen)."
     },
-    "collected_at": {
-      "$ref": "#/$defs/dateTimeString"
+    "app": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Applikations-Identifikator (z. B. code, obsidian, firefox)."
     },
-    "state": {
-      "type": "object",
-      "properties": {
-        "mode": {
-          "type": "string",
-          "enum": [
-            "active",
-            "idle",
-            "maintenance"
-          ]
-        },
-        "version": {
-          "type": "integer",
-          "minimum": 0
-        }
-      },
-      "required": [
-        "mode",
-        "version"
-      ],
-      "additionalProperties": true
+    "window": {
+      "type": "string",
+      "maxLength": 512,
+      "description": "Fenster-/Dokumenttitel (wenn verfügbar, ggf. redigiert)."
     },
-    "event_id": {
-      "type": "string"
+    "focus": {
+      "type": "boolean",
+      "description": "true, wenn das Fenster im Vordergrund ist."
     },
-    "event_type": {
-      "type": "string"
+    "activity_rpm": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000,
+      "description": "Aktivität (Key/Mouse) pro Minute (geschätzt)."
     },
-    "occurred_at": {
-      "$ref": "#/$defs/dateTimeString"
-    },
-    "payload": {
-      "type": "object",
-      "additionalProperties": true
-    },
-    "context": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      }
+    "source": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Sensorquelle (default: mitschreiber)."
     }
   },
-  "additionalProperties": true,
-  "$defs": {
-    "dateTimeString": {
-      "type": "string",
-      "pattern": "^(?:[0-9]{4})-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{1,9})?(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$"
+  "required": ["ts", "app", "focus"],
+  "examples": [
+    {
+      "ts": "2025-10-05T10:15:30Z",
+      "app": "code",
+      "window": "project-x/main.py — Visual Studio Code",
+      "focus": true,
+      "activity_rpm": 120,
+      "source": "mitschreiber"
     }
-  }
+  ]
 }
