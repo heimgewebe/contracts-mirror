@@ -70,13 +70,13 @@ jobs:
 
     steps:
       - name: Checkout caller (fixtures)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Checkout contracts (schemas)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: heimgewebe/contracts-mirror
           ref: ${{ inputs.contracts_ref }}
