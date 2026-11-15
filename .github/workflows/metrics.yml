@@ -1,15 +1,14 @@
 ---
-name: "📊 Metrics Snapshot & Validation"
+name: "Metrics schema compatibility fixture (manual only)"
 permissions:
   contents: read          # Repo lesen, um Skripte auszuführen
   actions: write          # notwendig für upload-artifact
 "on":
   workflow_dispatch:
-  schedule:
-    - cron: "0 * * * *"
 
 env:
-  METRICS_SCHEMA_URL: https://raw.githubusercontent.com/heimgewebe/metarepo/contracts-v1/contracts/wgx/metrics.json
+  METRICS_SCHEMA_URL: https://raw.githubusercontent.com/heimgewebe/metarepo/4a2ff7660558d5a0f3c4b77ddf3ed757b7659826/contracts/metrics.snapshot.schema.json
+  METRICS_SCHEMA_SHA256: ef04687073175e48fc2058bd1439470c4cd19f27b59336a454f1261c40d9e5f2
 
 jobs:
   snapshot:
@@ -28,13 +27,14 @@ jobs:
 
       - name: Snapshot metrics
         run: bash scripts/wgx-metrics-snapshot.sh --json
-      - name: Fetch AJV schema (local file)
+      - name: Fetch pinned AJV schema
         run: |
           mkdir -p .ci
-          curl -fsSL "$METRICS_SCHEMA_URL" -o .ci/metrics.schema.json
+          curl --fail --silent --show-error --location --connect-timeout 5 --max-time 30 "$METRICS_SCHEMA_URL" -o .ci/metrics.schema.json
+          printf '%s  %s\n' "$METRICS_SCHEMA_SHA256" .ci/metrics.schema.json | sha256sum --check --strict
 
       - name: Validate metrics contract
-        run: npx --yes ajv-cli@5 validate -s .ci/metrics.schema.json -d metrics.json --spec=draft2020
+        run: npx --yes ajv-cli@5.0.0 validate --spec=draft2020 --strict=log -s .ci/metrics.schema.json -d metrics.json
 
       - name: Upload metrics.json artifact
         uses: actions/upload-artifact@v7
