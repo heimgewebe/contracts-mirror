@@ -6,7 +6,7 @@ output_path=${WGX_METRICS_OUTPUT:-metrics.json}
 usage() {
   cat <<'EOF'
 wgx-metrics-snapshot.sh [--json] [--output PATH]
-Erzeugt metrics.json (ts, host, updates, backup, drift).
+Erzeugt eine synthetische metrics.json-Schemafixture (keine Host-/Backup-Messung).
   --json           zusätzlich JSON auf STDOUT
   --output PATH    Ziel-Datei (Default: metrics.json)
 EOF
@@ -28,6 +28,8 @@ done
 [[ -n "$output_path" ]] || { echo "Der Ausgabe-Pfad darf nicht leer sein" >&2; exit 1; }
 outdir="$(dirname "$output_path")"; [[ -d "$outdir" ]] || mkdir -p "$outdir"
 
+# Kompatibilitätsfixture für Contract-Checks; Defaultwerte sind keine Messung.
+# GitHub-Runner-Hostname, Updates=0 und Backup-Alter=1 beweisen keine Host-Gesundheit.
 ts=$(date +%s)
 host=$(hostname)
 updates_os=${UPDATES_OS:-0}
